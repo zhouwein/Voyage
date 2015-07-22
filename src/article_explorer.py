@@ -16,13 +16,13 @@ import sys
 import os
 
 # Add Django directories in the Python paths for django shell to work
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
-                                             'Frontend')))
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
+#                                             'Frontend')))
 # Append local python lib to the front to assure
 # local library(mainly Django 1.7.1) to be used
-sys.path.insert(0, os.path.join(os.environ['HOME'],
-                                '.local/lib/python2.7/site-packages'))
+#sys.path.insert(0, os.path.join(os.environ['HOME'],
+#                                '.local/lib/python2.7/site-packages'))
 # newspaper, for populating articles of each site
 # and parsing most of the data.
 import newspaper
@@ -95,24 +95,11 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
         newspaper_articles = []
         crawlersource_articles = []
         logging.info("Site: %s Type:%i"%(site['name'], site['type']))
-        if(site["type"] == 0 or site["type"] == 2):
-            logging.info("Populating Article objects using newspaper")
-            logging.disable(logging.ERROR)
-            newspaper_source = newspaper.build(site["url"],
-                                             memoize_articles=False,
-                                             keep_article_html=True,
-                                             fetch_images=False,
-                                             language='en',
-                                             number_threads=1)
-            logging.disable(logging.NOTSET)
-            newspaper_articles = newspaper_source.articles
-            article_count = newspaper_source.size()
-            logging.info("Finished popuating Article objects using newspaper: %i"%article_count)
-        if(site["type"] == 1 or site["type"] == 2):
-            logging.info("Creating Plan B Article generator")
-            crawlersource_articles = CrawlerSource.CrawlerSource(site["url"])
-            logging.info("Finished creating Plan B Article generator")
-        article_iterator = itertools.chain(iter(newspaper_articles), crawlersource_articles)
+
+        logging.info("Creating Plan B Article generator")
+        crawlersource_articles = CrawlerSource.CrawlerSource(site["url"])
+        logging.info("Finished creating Plan B Article generator")
+        article_iterator = crawlersource_articles
         processed = 0
         logging.info("Starting article parsing")
         for article in article_iterator:
@@ -169,84 +156,9 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
                         
                     logging.info("Found Match")
                     # Check if the entry already exists
-                    db_article_list = Article.objects.filter(url=url)
-                    if not db_article_list:
-                        logging.info("Adding new Article to the DB")
-                        # If the db_article is new to the database,
-                        # add it to the database
-                        db_article = Article(title=title, url=url,
-                                          domain=site["url"],
-                                          date_added=timezone.localtime(
-                                              timezone.now()),
-                                          date_published=pub_date)
-                        db_article.save()
-
-                        db_article = Article.objects.get(url=url)
-
-                        for key in keywords:
-                            db_article.keyword_set.create(name=key)
-
-                        for author in authors:
-                            db_article.author_set.create(name=author)
-                        for account in twitter_accounts[0]:
-
-                            db_article.sourcetwitter_set.create(name = account, matched = True)
-
-                        for account in twitter_accounts[1]:
-                            db_article.sourcetwitter_set.create(name = account, matched = False)
-
-                        for source in sources[0]:
-                            db_article.sourcesite_set.create(url=source[0],
-                                                      domain=source[1], matched=True, local=(source[1] in site["url"]))
-
-                        for source in sources[1]:
-                            db_article.sourcesite_set.create(url=source[0],
-                                                      domain=source[1], matched=False, local=(source[1] in site["url"]))
-
-                        added += 1
-
-                    else:
-                        logging.info("Modifying existing Article in the DB")
-                        # If the db_article already exists,
-                        # update all fields except date_added
-                        db_article = db_article_list[0]
-                        db_article.title = title
-                        db_article.url = url
-                        db_article.domain = site["url"]
-                        # Do not update the added date
-                        # db_article.date_added = today
-                        db_article.date_published = pub_date
-                        db_article.save()
-
-                        for key in keywords:
-                            if not ArticleKeyword.objects.filter(name=key):
-                                db_article.keyword_set.create(name=key)
-
-                        for author in authors:
-                            if not Author.objects.filter(name=author):
-                                db_article.author_set.create(name=author)
-
-                        for account in twitter_accounts[0]:
-                            if not SourceTwitter.objects.filter(name=account):
-                                db_article.sourcetwitter_set.create(name = account, matched = True)
-
-                        for account in twitter_accounts[1]:
-                            if not SourceTwitter.objects.filter(name=account):
-                                db_article.sourcetwitter_set.create(name = account, matched = False)
-
-                        for source in sources[0]:
-                            if not SourceSite.objects.filter(url=source[0]):
-                                db_article.sourcesite_set.create(url=source[0],
-                                                      domain=source[1], matched=True, local=(source[1] in site["url"]))
-
-                        for source in sources[1]:
-                            if not SourceSite.objects.filter(url=source[0]):
-                                db_article.sourcesite_set.create(url=source[0],
-                                                      domain=source[1], matched=False, local=(source[1] in site["url"]))
-
-
+                    db_stuff(authors, keywords, pub_date, site, sources, title, twitter_accounts, url)
                     logging.info("Creating warc")
-                    warc_creator.create_article_warc(url)
+                    #warc_creator.create_article_warc(url)
 
             processed += 1
 
@@ -295,6 +207,80 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
             "%s (Article|%s) %i/%i          " %
             (str(timezone.localtime(timezone.now()))[:-13], site["name"],
              processed, article_count))
+
+
+def db_stuff(authors, keywords, pub_date, site, sources, title, twitter_accounts, url):
+    db_article_list = Article.objects.filter(url=url)
+    if not db_article_list:
+        logging.info("Adding new Article to the DB")
+        # If the db_article is new to the database,
+        # add it to the database
+        db_article = Article(title=title, url=url,
+                             domain=site["url"],
+                             date_added=timezone.localtime(
+                                 timezone.now()),
+                             date_published=pub_date)
+        db_article.save()
+
+        db_article = Article.objects.get(url=url)
+
+        for key in keywords:
+            db_article.keyword_set.create(name=key)
+
+        for author in authors:
+            db_article.author_set.create(name=author)
+        for account in twitter_accounts[0]:
+            db_article.sourcetwitter_set.create(name=account, matched=True)
+
+        for account in twitter_accounts[1]:
+            db_article.sourcetwitter_set.create(name=account, matched=False)
+
+        for source in sources[0]:
+            db_article.sourcesite_set.create(url=source[0],
+                                             domain=source[1], matched=True, local=(source[1] in site["url"]))
+
+        for source in sources[1]:
+            db_article.sourcesite_set.create(url=source[0],
+                                             domain=source[1], matched=False, local=(source[1] in site["url"]))
+
+    else:
+        logging.info("Modifying existing Article in the DB")
+        # If the db_article already exists,
+        # update all fields except date_added
+        db_article = db_article_list[0]
+        db_article.title = title
+        db_article.url = url
+        db_article.domain = site["url"]
+        # Do not update the added date
+        # db_article.date_added = today
+        db_article.date_published = pub_date
+        db_article.save()
+
+        for key in keywords:
+            if not ArticleKeyword.objects.filter(name=key):
+                db_article.keyword_set.create(name=key)
+
+        for author in authors:
+            if not Author.objects.filter(name=author):
+                db_article.author_set.create(name=author)
+
+        for account in twitter_accounts[0]:
+            if not SourceTwitter.objects.filter(name=account):
+                db_article.sourcetwitter_set.create(name=account, matched=True)
+
+        for account in twitter_accounts[1]:
+            if not SourceTwitter.objects.filter(name=account):
+                db_article.sourcetwitter_set.create(name=account, matched=False)
+
+        for source in sources[0]:
+            if not SourceSite.objects.filter(url=source[0]):
+                db_article.sourcesite_set.create(url=source[0],
+                                                 domain=source[1], matched=True, local=(source[1] in site["url"]))
+
+        for source in sources[1]:
+            if not SourceSite.objects.filter(url=source[0]):
+                db_article.sourcesite_set.create(url=source[0],
+                                                 domain=source[1], matched=False, local=(source[1] in site["url"]))
 
 
 def get_sources_sites(html, sites):
@@ -563,16 +549,4 @@ if __name__ == '__main__':
     # The main function, to explore the articles
     explore()
 
-    end = timeit.default_timer()
-    delta_time = end - start
-    sleep_time = max(config['min_iteration_time']-delta_time, 0)
-    for i in range(int(sleep_time//5)):
-        time.sleep(5)
-        check_command()
-
-    check_command()
-
-    # Re run the program to avoid thread to increase
-    os.chmod('article_explorer_run.sh', 0700)
-    os.execl('article_explorer_run.sh', '')
-
+    print #for breakpoint
