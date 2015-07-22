@@ -73,6 +73,7 @@ def configuration():
     config_yaml.close()
     return conf
 
+profile_log = None
 def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_explorer):
     """ (list of [str, newspaper.source.Source, str],
          list of str, list of str, str) -> None
@@ -88,8 +89,14 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
     added, updated, failed, no_match = 0, 0, 0, 0
 
     # for each db_article in each sites, download and parse important data
+
+    global profile_log
+    profile_log= open("profile.log", "a")
+
     for site in referring_sites:
         # print "\n%s" % site[0]
+        profile_log.write("site: {0}\n".format(site['name']))
+        profile_site = time.clock()
 
         article_count = -1
         newspaper_articles = []
@@ -102,111 +109,121 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
         article_iterator = crawlersource_articles
         processed = 0
         logging.info("Starting article parsing")
-        for article in article_iterator:
-            logging.info("Looking at %s"%article.url)
-            # Check for any new command on communication stream
-            logging.debug("Checking for any new command on communication stream")
-            check_command()
+        try:
+            while True:
+                profile_next = time.clock()
+                article = article_iterator.next()
+                profile_log.write("{0},".format(time.clock() - profile_next))
+                logging.info("Looking at %s"%article.url)
+                # Check for any new command on communication stream
+                logging.debug("Checking for any new command on communication stream")
+                check_command()
 
-            url = article.url
-            if 'http://www.' in url:
-                url = url[:7] + url[11:]
-            elif 'https://www.' in url:
-                url = url[:8] + url[12:]
+                url = article.url
+                if 'http://www.' in url:
+                    url = url[:7] + url[11:]
+                elif 'https://www.' in url:
+                    url = url[:8] + url[12:]
 
-            # Try to download and extract the useful data
-            try:
-                if(not article.is_downloaded):
-                    logging.debug("Downloading article")
-                    logging.disable(logging.ERROR)
-                    article.download()
-                    logging.disable(logging.NOTSET)
-                if(not article.is_parsed):
-                    logging.debug("Parsing article")
-                    logging.disable(logging.ERROR)
-                    article.parse()
-                    logging.disable(logging.NOTSET)
-                title = article.title
-            except:
-                logging.warning("Could not parse article")
-                title = ""
-            # If downloading/parsing the page fails,
-            # stop here and move on to next db_article
-            if not ((title == "") or (title == "Page not found")):
-                # Regex the keyword from the article's text
-                logging.debug("Checking Keyword matches")
-                keywords = get_keywords(article, db_keywords)
-                # Regex the links within article's html
-                logging.debug("Checking Source Site matches")
-                sources = get_sources_sites(article.article_html, source_sites)
-                logging.debug("Checking Twitter Account matches")
-                twitter_accounts= get_sources_twitter(article.article_html, twitter_accounts_explorer)
-                # Store parsed author
-                authors = article.authors
-                # Try to parse the published date
-                pub_date = get_pub_date(article)
+                # Try to download and extract the useful data
+                try:
+                    if(not article.is_downloaded):
+                        logging.debug("Downloading article")
+                        logging.disable(logging.ERROR)
+                        article.download()
+                        logging.disable(logging.NOTSET)
+                    if(not article.is_parsed):
+                        logging.debug("Parsing article")
+                        logging.disable(logging.ERROR)
+                        article.parse()
+                        logging.disable(logging.NOTSET)
+                    title = article.title
+                except:
+                    logging.warning("Could not parse article")
+                    title = ""
+                # If downloading/parsing the page fails,
+                # stop here and move on to next db_article
+                if not ((title == "") or (title == "Page not found")):
+                    # Regex the keyword from the article's text
+                    logging.debug("Checking Keyword matches")
+                    profile_parse = time.clock()
+                    keywords = get_keywords(article, db_keywords)
+                    # Regex the links within article's html
+                    logging.debug("Checking Source Site matches")
+                    sources = get_sources_sites(article.article_html, source_sites)
+                    logging.debug("Checking Twitter Account matches")
+                    twitter_accounts= get_sources_twitter(article.article_html, twitter_accounts_explorer)
+                    # Store parsed author
+                    authors = article.authors
+                    # Try to parse the published date
+                    pub_date = get_pub_date(article)
+                    profile_log.write("{0},".format(time.clock()-profile_parse))
+                    # If neither of keyword nor sources matched,
+                    # then stop here and move on to next article
+                    if not (keywords == [] and sources[0] == [] and twitter_accounts[0] ==[]):
+                        try:
+                            url = requests.get(url).url
+                        except:
+                            logging.warning("Could not request")
 
-                # If neither of keyword nor sources matched,
-                # then stop here and move on to next article
-                if not (keywords == [] and sources[0] == [] and twitter_accounts[0] ==[]):
-                    try:
-                        url = requests.get(url).url
-                    except:
-                        logging.warning("Could not request")
-                        
-                    logging.info("Found Match")
-                    # Check if the entry already exists
-                    db_stuff(authors, keywords, pub_date, site, sources, title, twitter_accounts, url)
-                    logging.info("Creating warc")
-                    #warc_creator.create_article_warc(url)
+                        logging.info("Found Match")
+                        # Check if the entry already exists
+                        profile_db = time.clock()
+                        db_stuff(authors, keywords, pub_date, site, sources, title, twitter_accounts, url)
+                        profile_log.write("{0},".format(time.clock() - profile_db))
 
-            processed += 1
+                        logging.info("Creating warc")
 
-            # Let the output print back to normal for minimal ui
-            sys.stdout = sys.__stdout__
-            # Print out minimal information
-            sys.stdout.write(
-                "%s (Article|%s) %i/%i          \r" %
-                (str(timezone.localtime(timezone.now()))[:-13],
-                 site["name"], processed, article_count))
-            sys.stdout.flush()
-            # Null the db_article data to free the memory
-            #newspaper_source.articles[db_article] = None
+                        profile_warc = time.clock()
+                        warc_creator.create_article_warc(url)
+                        profile_log.write("{0},".format(time.clock() - profile_warc))
 
-            # Null the article object's content to free the memory
-            article.article_html = None
-            article.text = None
-            article.title = None
-            article.source_url = None
-            article.url = None
-            article.top_img = None
-            article.meta_img = None
-            article.imgs = None
-            article.movies = None
-            article.keywords = None
-            article.meta_keywords = None
-            article.tags = None
-            article.authors = None
-            article.publish_date = None
-            article.summary = None
-            article.html = None
-            article.is_parsed = None
-            article.is_downloaded = None
-            article.meta_description = None
-            article.meta_lang = None
-            article.meta_favicon = None
-            article.meta_data = None
-            article.canonical_link = None
-            article.top_node = None
-            article.clean_top_node = None
-            article.doc = None
-            article.clean_doc = None
-            article.additional_data = None
 
-	print(
-            "%s (Article|%s) %i/%i          " %
-            (str(timezone.localtime(timezone.now()))[:-13], site["name"],
-             processed, article_count))
+                processed += 1
+
+                # Let the output print back to normal for minimal ui
+                sys.stdout = sys.__stdout__
+                # Print out minimal information
+                sys.stdout.write(
+                    "%s (Article|%s) %i/%i          \r" %
+                    (str(timezone.localtime(timezone.now()))[:-13],
+                     site["name"], processed, article_count))
+                sys.stdout.flush()
+                # Null the db_article data to free the memory
+                #newspaper_source.articles[db_article] = None
+
+                # Null the article object's content to free the memory
+                article.article_html = None
+                article.text = None
+                article.title = None
+                article.source_url = None
+                article.url = None
+                article.top_img = None
+                article.meta_img = None
+                article.imgs = None
+                article.movies = None
+                article.keywords = None
+                article.meta_keywords = None
+                article.tags = None
+                article.authors = None
+                article.publish_date = None
+                article.summary = None
+                article.html = None
+                article.is_parsed = None
+                article.is_downloaded = None
+                article.meta_description = None
+                article.meta_lang = None
+                article.meta_favicon = None
+                article.meta_data = None
+                article.canonical_link = None
+                article.top_node = None
+                article.clean_top_node = None
+                article.doc = None
+                article.clean_doc = None
+                article.additional_data = None
+        except StopIteration:
+            pass
+        profile_log.write("total: {0}\n".format(time.clock()-profile_site))
 
 
 def db_stuff(authors, keywords, pub_date, site, sources, title, twitter_accounts, url):
