@@ -1,6 +1,7 @@
 import newspaper
 from urlparse import urlparse, urljoin
 import random
+import time
 
 '''
 An iterator class for iterating over articles in a given site
@@ -21,7 +22,7 @@ class CrawlerSource(object):
         def __iter__(self):
             return self
 
-        def next(self):
+        def next(self, profile_log):
             '''
             (CrawlerSource) -> newspaper.Article
             returns the next article in the sequence
@@ -39,8 +40,12 @@ class CrawlerSource(object):
                 #use newspaper to download and parse the article
                 article = newspaper.Article(url)
                 article.config.fetch_images = False
+                profile_download = time.clock()
                 article.download()
+                profile_log.write("{0},".format(time.clock()-profile_download))
+                profile_parse = time.clock()
                 article.parse()
+                profile_log.write("{0},".format(time.clock()-profile_parse))
                 #get get urls from the article
                 article_urls = article.extractor.get_urls(article.doc)
 
@@ -56,7 +61,7 @@ class CrawlerSource(object):
                 return article
 
         def _should_skip(self):
-            n = 5000
+            n = 1000
             k = 0.6
             return random.random() < CrawlerSource._s_curve(self.pages_visited/n, k)
 

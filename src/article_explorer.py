@@ -91,7 +91,7 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
     # for each db_article in each sites, download and parse important data
 
     global profile_log
-    profile_log= open("profile.log", "a")
+    profile_log= open("profile.log", "w")
 
     for site in referring_sites:
         # print "\n%s" % site[0]
@@ -111,8 +111,8 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
         logging.info("Starting article parsing")
         try:
             while True:
-                profile_next = time.clock()
-                article = article_iterator.next()
+                profile_next = profile_article = time.clock()
+                article = article_iterator.next(profile_log)
                 profile_log.write("{0},".format(time.clock() - profile_next))
                 logging.info("Looking at %s"%article.url)
                 # Check for any new command on communication stream
@@ -221,8 +221,9 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
                 article.doc = None
                 article.clean_doc = None
                 article.additional_data = None
+                profile_log.write("{0}\n".format(time.clock()-profile_article))
         except StopIteration:
-            pass
+            profile_log.write("\n")
         profile_log.write("total: {0}\n".format(time.clock()-profile_site))
 
 
@@ -534,15 +535,15 @@ if __name__ == '__main__':
     config = configuration()
 
     # Logging config
-    time = datetime.datetime.now().strftime('%Y%m%d')
+    time_ = datetime.datetime.now().strftime('%Y%m%d')
     log_dir = config['projectdir']+"/log"
     
     try:
-        cycle_number = sorted(glob.glob(log_dir + "/article_explorer-" + time + "*.log"))[-1][-7:-4]
+        cycle_number = sorted(glob.glob(log_dir + "/article_explorer-" + time_ + "*.log"))[-1][-7:-4]
         cycle_number = str(int(cycle_number) + 1)
     except:
         cycle_number = "0"
-    logging.basicConfig(filename=log_dir+"/article_explorer-" + time + "-" + cycle_number.zfill(3) + ".log",
+    logging.basicConfig(filename=log_dir+"/article_explorer-" + time_ + "-" + cycle_number.zfill(3) + ".log",
                         level=logging.DEBUG,
                         format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     config = config['article']
