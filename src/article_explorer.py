@@ -234,7 +234,7 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
                                 db_article.sourcesite_set.create(url=source[0],
                                                       domain=source[1], matched=False, local=(source[1] in site["url"]))
 
-                    warc_creator.create_article_warc(url)
+                    warc_creator.create_warc(url)
                 else:
                     logging.info("No matches")
             else:
@@ -532,7 +532,10 @@ if __name__ == '__main__':
 
     # Logging config
     time = datetime.datetime.now().strftime('%Y%m%d')
-    log_dir = config['projectdir']+"/log"
+    if config['projectdir'] == None:
+        log_dir = "/log"
+    else:
+        log_dir = config['projectdir']+"/log"
     
     try:
         cycle_number = sorted(glob.glob(log_dir + "/article_explorer-" + time + "*.log"))[-1][-7:-4]

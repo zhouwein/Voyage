@@ -27,5 +27,12 @@ lib64
 # Warc folder
 warc/*
 
+# Web Recorder
+pywb/dedup.db
+pywb/ca-cert.pem
+pywb/certs
+pywb/done
+pywb/recording
+
 # Database
 Frontend/db.sqlite3
