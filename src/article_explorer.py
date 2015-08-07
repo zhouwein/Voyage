@@ -337,8 +337,6 @@ def get_sources_twitter(html, source_twitter):
     return [matched,unmatched]
 
 
-
-
 def get_pub_date(article):
     """ (newspaper.article.Article) -> str
     Searches and returns date of which the article was published
@@ -432,6 +430,7 @@ def explore():
     # Parse the articles in all sites
     parse_articles(referring_sites, keyword_list, source_sites, source_twitter_list)
     logging.info("Finished parsing Articles")
+
 
 def comm_write(text):
     """ (Str) -> None
