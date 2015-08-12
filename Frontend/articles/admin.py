@@ -90,7 +90,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
     def link_options(self, obj):
         return format(('<a href="/admin/articles/article/%s">Details</a><br>' +\
-                      '<a target="_blank" href="http://localhost:8080/replay/%s/">View</a>')
+                      '<a target="_blank" href="http://localhost:8080/replay-record/%s/">View</a>')
                       % (str(obj.pk), obj.url))
 
 

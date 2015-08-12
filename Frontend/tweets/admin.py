@@ -96,8 +96,8 @@ class TweetAdmin(admin.ModelAdmin):
 
     def link_options(self, obj):
         return format(('<a href="/admin/tweets/tweet/%s">Details</a><br>' +\
-                       '<a href="/tweets/warc/%s">Download</a>') % (str(obj.pk), 'https://twitter.com/' + obj.name + '/status/' + str(obj.tweet_id)))
-    
+                       '<a target="_blank" href="http://localhost:8080/replay-record/%s/">View</a>')
+                       % (str(obj.pk), 'https://twitter.com/' + obj.name + '/status/' + str(obj.tweet_id)))
     link_options.allow_tags = True
     link_options.short_description = "Options"
 
