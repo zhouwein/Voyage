@@ -8,18 +8,18 @@ import logging
 import collections
 from ExplorerArticle import ExplorerArticle
 import urlnorm
+import codecs
 '''
 An iterator class for iterating over articles in a given site
 '''
 
 class Crawler(object):
-        def __init__(self, origin_url, filters):
+        def __init__(self, origin_url, name):
             '''
             (Crawler, str) -> Crawler
             creates a Crawler with a given origin_url
             '''
             self.origin_url = origin_url
-            self.filters = filters
             self.visit_queue = collections.deque([origin_url])
             self.visited_urls = set()
             self.domain = urlparse(origin_url).netloc
@@ -27,6 +27,8 @@ class Crawler(object):
 
             self.probabilistic_n = common.get_config()["crawler"]["n"]
             self.probabilistic_k = common.get_config()["crawler"]["k"]
+
+            self.f = codecs.open(name, 'wb')
 
         def __iter__(self):
             return self
@@ -40,11 +42,8 @@ class Crawler(object):
             while(True):
                 if(len(self.visit_queue) <= 0):
                     raise StopIteration
+                self.f.write(u"0 \n")
                 current_url = self.visit_queue.pop()
-
-                if(self._should_skip()):
-                    logging.info(u"skipping {0} randomly".format(current_url))
-                    continue
 
                 logging.info(u"visiting {0}".format(current_url))
                 #use newspaper to download and parse the article
@@ -54,9 +53,6 @@ class Crawler(object):
                 #get get urls from the article
                 for link in article.get_links():
                     url = urljoin(current_url, link.href, False)
-                    if self.url_in_filter(url, self.filters):
-                        logging.info("Matches with filter, skipping the {0}".format(url))
-                        continue
                     try:
                         parsed_url = urlparse(url)
                         parsed_as_list = list(parsed_url)
@@ -70,8 +66,10 @@ class Crawler(object):
                         continue
                     if(not parsed_url.netloc.endswith(self.domain)):
                         continue
+                    self.f.write(u"1 " + url + u"\n")
                     if(url in self.visited_urls):
                         continue
+                    self.f.write(u"2 " + url + u"\n")
                     self.visit_queue.appendleft(url)
                     self.visited_urls.add(url)
                     logging.info(u"added {0} to the visit queue".format(url))
