@@ -28,7 +28,7 @@ class Crawler(object):
             self.probabilistic_n = common.get_config()["crawler"]["n"]
             self.probabilistic_k = common.get_config()["crawler"]["k"]
 
-            self.f = codecs.open(name, 'wb')
+            self.f = codecs.open(name, 'wb', encoding="utf-8")
 
         def __iter__(self):
             return self
@@ -42,40 +42,43 @@ class Crawler(object):
             while(True):
                 if(len(self.visit_queue) <= 0):
                     raise StopIteration
-                self.f.write(u"0 \n")
-                current_url = self.visit_queue.pop()
+                try:
+                    self.f.write(u"0 \n")
+                    current_url = self.visit_queue.pop()
 
-                logging.info(u"visiting {0}".format(current_url))
-                #use newspaper to download and parse the article
-                article = ExplorerArticle(current_url)
-                article.download()
+                    logging.info(u"visiting {0}".format(current_url))
+                    #use newspaper to download and parse the article
+                    article = ExplorerArticle(current_url)
+                    article.download()
 
-                #get get urls from the article
-                for link in article.get_links():
-                    url = urljoin(current_url, link.href, False)
-                    try:
-                        parsed_url = urlparse(url)
-                        parsed_as_list = list(parsed_url)
-                        if(parsed_url.scheme != u"http" and parsed_url.scheme != u"https"):
-                            logging.info(u"skipping url with invalid scheme: {0}".format(url))
+                    #get get urls from the article
+                    for link in article.get_links():
+                        url = urljoin(current_url, link.href, False)
+                        try:
+                            parsed_url = urlparse(url)
+                            parsed_as_list = list(parsed_url)
+                            if(parsed_url.scheme != u"http" and parsed_url.scheme != u"https"):
+                                logging.info(u"skipping url with invalid scheme: {0}".format(url))
+                                continue
+                            parsed_as_list[5] = ''
+                            url = urlunparse(urlnorm.norm_tuple(*parsed_as_list))
+                        except Exception as e:
+                            logging.info(u"skipping malformed url {0}. Error: {1}".format(url, str(e)))
                             continue
-                        parsed_as_list[5] = ''
-                        url = urlunparse(urlnorm.norm_tuple(*parsed_as_list))
-                    except Exception as e:
-                        logging.info(u"skipping malformed url {0}. Error: {1}".format(url, str(e)))
-                        continue
-                    if(not parsed_url.netloc.endswith(self.domain)):
-                        continue
-                    self.f.write(u"1 " + url + u"\n")
-                    if(url in self.visited_urls):
-                        continue
-                    self.f.write(u"2 " + url + u"\n")
-                    self.visit_queue.appendleft(url)
-                    self.visited_urls.add(url)
-                    logging.info(u"added {0} to the visit queue".format(url))
+                        if(not parsed_url.netloc.endswith(self.domain)):
+                            continue
+                        self.f.write(u"1 " + url + u"\n")
+                        if(url in self.visited_urls):
+                            continue
+                        self.f.write(u"2 " + url + u"\n")
+                        self.visit_queue.appendleft(url)
+                        self.visited_urls.add(url)
+                        logging.info(u"added {0} to the visit queue".format(url))
 
-                self.pages_visited += 1
-                return article
+                    self.pages_visited += 1
+                    return article
+                except Exception as e:
+                    print e
 
         def _should_skip(self):
             n = self.probabilistic_n
