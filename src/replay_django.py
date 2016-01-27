@@ -19,6 +19,7 @@ if __name__ == "__main__":
 
     source_site = SourceSite(url="example.com", name="example")
     source_site.save()
+    ToVisitPage(url="example.com", urlHash=0, sourceSite=source_site).save()
 
     start = time.time()
     for line in sys.stdin:
