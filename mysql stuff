@@ -1,0 +1,6 @@
+create table visited (url varchar(1024), primary key(url)) ROW_FORMAT=DYNAMIC;
+create table tovisit (id int not null auto_increment, url varchar(1024), primary key (id));
+
+delete from visited where 1;delete from tovisit where 1;
+
+CREATE DATABASE voyage CHARACTER SET UTF8 COLLATE utf8_general_ci;
