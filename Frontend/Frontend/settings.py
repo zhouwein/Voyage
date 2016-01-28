@@ -46,7 +46,6 @@ INSTALLED_APPS = (
     'statistics',
     'options',
     'visualizations',
-    'crawler'
 )
 
 MIDDLEWARE_CLASSES = (
@@ -69,12 +68,8 @@ WSGI_APPLICATION = 'Frontend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'voyage',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost',
-        'PORT': '',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
 
