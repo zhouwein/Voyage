@@ -36,3 +36,7 @@ log:
 crawler:
     n: 5000
     k: 0.6
+    db:
+      user: root
+      password: root
+      name: root

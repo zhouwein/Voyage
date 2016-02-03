@@ -8,8 +8,7 @@ import logging
 import collections
 from ExplorerArticle import ExplorerArticle
 import urlnorm
-from Crawler.models import VisitedPage
-from Crawler.models import ToVisitPage
+import MySQLdb
 '''
 An iterator class for iterating over articles in a given site
 '''
@@ -30,6 +29,19 @@ class Crawler(object):
         self.probabilistic_n = common.get_config()["crawler"]["n"]
         self.probabilistic_k = common.get_config()["crawler"]["k"]
 
+        self.db = MySQLdb.connect(host="localhost", user=common.get_config()["crawler"]["db"]["user"],
+                                  passwd=common.get_config()["crawler"]["db"]["password"],
+                                  db=common.get_config()["crawler"]["db"]["name"], charset="utf8")
+        self.cursor = self.db.cursor()
+        self.visited_table = "visited_" + site.id
+        self.tovisit_table = "tovisit_" + site.id
+        self.cursor.execute("DROP TABLE IF EXISTS %s", (self.visited_table,))
+        self.cursor.execute("CREATE TABLE %s (url VARCHAR(1024), PRIMARY KEY(url)) ROW_FORMAT=DYNAMIC", (self.visited_table,))
+        self.cursor.execute("DROP TABLE IF EXISTS %s", (self.tovisit_table,))
+        self.cursor.execute("CREATE TABLE %s (id INT NOT NULL AUTO_INCREMENT, url VARCHAR(1024), PRIMARY KEY(id))", (self.tovisit_table,))
+        self.cursor.execute(u"INSERT INTO %s VALUES (DEFAULT, %s)", (self.tovisit_table, site.url))
+        self.db.commit()
+
     def __iter__(self):
         return self
 
@@ -38,15 +50,16 @@ class Crawler(object):
         (Crawler) -> newspaper.Article
         returns the next article in the sequence
         '''
-        if(ToVisitPage.objects.count() == 0):
-            ToVisitPage(url=self.site.url, site=self.site).save()
-            VisitedPage.objects.all().delete()
 
         #standard non-recursive tree iteration
         while(True):
-            if(ToVisitPage.objects.count() <= 0):
+            if(self.cursor.execute("SELECT * FROM %s ORDER BY id LIMIT 1", (self.tovisit_table,))):
+                row = self.cursor.fetchone()
+                row_id = row[0]
+                current_url = row[1]
+                self.cursor.execute("DELETE FROM %s WHERE id=%s", (self.tovisit_table, row_id))
+            else:
                 raise StopIteration
-            current_url = ToVisitPage.objects.first().url
 
             if(self._should_skip()):
                 logging.info(u"skipping {0} randomly".format(current_url))
@@ -76,11 +89,17 @@ class Crawler(object):
                     continue
                 if(not parsed_url.netloc.endswith(self.domain)):
                     continue
-                if(VisitedPage.objects.filter(url=url).count()):
-                    continue
-                ToVisitPage(url=url, site=self.site).save()
-                VisitedPage(url=url, site=self.site).save()
-                logging.info(u"added {0} to the visit queue".format(url))
+
+                #self.cursor.execute(u"SELECT EXISTS(SELECT * FROM %s WHERE url=%s)",(self.visited_table, url))
+                #if(self.cursor.fetchone()[0]):
+                #    continue
+
+                #when executing an INSERT statement cursor.execute returns the number of rows updated. If the url
+                #exists in the visited table, then no rows will be updated. Thus if a row is updated, we know that
+                #it has not been visited and we should add it to the visit queue
+                if(self.cursor.execute(u"INSERT INTO %s VALUES (%s) ON DUPLICATE KEY UPDATE url=url", (self.visited_table, url))):
+                    self.cursor.execute(u"INSERT INTO %s VALUES (DEFAULT , %s)", (self.tovisit_table, url))
+                    logging.info(u"added {0} to the visit queue".format(url))
 
             self.pages_visited += 1
             return article
