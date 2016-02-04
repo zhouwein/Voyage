@@ -39,4 +39,4 @@ crawler:
     db:
       user: root
       password: root
-      name: root
+      name: voyage
