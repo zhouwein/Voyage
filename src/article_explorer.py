@@ -66,7 +66,7 @@ import datetime
 # Custom ExlporerArticle object based on newspaper's Article
 from ExplorerArticle import ExplorerArticle
 # For multiprocessing
-from multiprocessing import Pool, cpu_count
+from multiprocessing.dummy import Pool, cpu_count
 from functools import partial
 import signal
 

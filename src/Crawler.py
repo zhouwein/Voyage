@@ -1,11 +1,8 @@
-import newspaper
 from urlparse import urlparse, urljoin, urlunparse
 import random
 import common
-import requests
 import re
 import logging
-import collections
 from ExplorerArticle import ExplorerArticle
 import urlnorm
 import MySQLdb
@@ -21,8 +18,6 @@ class Crawler(object):
         '''
         self.site = site
         self.filters = site.referringsitefilter_set.all()
-        #self.visit_queue = collections.deque([site.url])
-        #self.visited_urls = set()
         self.domain = urlparse(site.url).netloc
         self.pages_visited = 0
 
