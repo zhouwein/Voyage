@@ -37,7 +37,7 @@ def validate_site(site):
 # Create your models here.
 
 class ReferringSite(models.Model):
-    url = models.URLField(max_length=2000, #validators=[validate_site],
+    url = models.URLField(max_length=2000, unique=True, #validators=[validate_site],
                           help_text='Must include "http://", and choose the url as simple as possible for maximum matches. Maximum 2000 characters (Ex. http://cnn.com)')
     name = models.CharField(max_length=200, 
                             help_text='Your favorable alias of this site.\n' +
@@ -114,7 +114,7 @@ class SourceTwitter(models.Model):
         return self.name
 
 class SourceSite(models.Model):
-    url = models.URLField(max_length=2000,
+    url = models.URLField(max_length=2000, unique=True, 
                           help_text='Must include "http://", and choose the url as simple as possible for maximum matches. Maximum 2000 characters (Ex. http://aljazeera.com)')
     name = models.CharField(max_length=200, 
                             help_text='Your favorable alias of this site.')
