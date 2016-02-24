@@ -30,11 +30,11 @@ class Crawler(object):
         self.cursor = self.db.cursor()
         self.visited_table = "visited_" + str(site.id)
         self.tovisit_table = "tovisit_" + str(site.id)
-        self.cursor.execute("DROP TABLE IF EXISTS %s", (self.visited_table,))
-        self.cursor.execute("CREATE TABLE %s (url VARCHAR(1024), PRIMARY KEY(url)) ROW_FORMAT=DYNAMIC", (self.visited_table,))
-        self.cursor.execute("DROP TABLE IF EXISTS %s", (self.tovisit_table,))
-        self.cursor.execute("CREATE TABLE %s (id INT NOT NULL AUTO_INCREMENT, url VARCHAR(1024), PRIMARY KEY(id))", (self.tovisit_table,))
-        self.cursor.execute(u"INSERT INTO %s VALUES (DEFAULT, %s)", (self.tovisit_table, site.url))
+        self.cursor.execute("DROP TABLE IF EXISTS " + self.visited_table)
+        self.cursor.execute("CREATE TABLE " + self.visited_table + " (url VARCHAR(1024), PRIMARY KEY(url)) ROW_FORMAT=DYNAMIC")
+        self.cursor.execute("DROP TABLE IF EXISTS " + self.tovisit_table)
+        self.cursor.execute("CREATE TABLE " + self.tovisit_table + " (id INT NOT NULL AUTO_INCREMENT, url VARCHAR(1024), PRIMARY KEY(id))")
+        self.cursor.execute(u"INSERT INTO " + self.tovisit_table + " VALUES (DEFAULT, %s)", (site.url,))
         self.db.commit()
 
     def __iter__(self):
@@ -48,11 +48,11 @@ class Crawler(object):
 
         #standard non-recursive tree iteration
         while(True):
-            if(self.cursor.execute("SELECT * FROM %s ORDER BY id LIMIT 1", (self.tovisit_table,))):
+            if(self.cursor.execute("SELECT * FROM " + self.tovisit_table + " ORDER BY id LIMIT 1")):
                 row = self.cursor.fetchone()
                 row_id = row[0]
                 current_url = row[1]
-                self.cursor.execute("DELETE FROM %s WHERE id=%s", (self.tovisit_table, row_id))
+                self.cursor.execute("DELETE FROM " + self.tovisit_table + " WHERE id=%s", (row_id,))
             else:
                 raise StopIteration
 
@@ -85,15 +85,15 @@ class Crawler(object):
                 if(not parsed_url.netloc.endswith(self.domain)):
                     continue
 
-                #self.cursor.execute(u"SELECT EXISTS(SELECT * FROM %s WHERE url=%s)",(self.visited_table, url))
+                #self.cursor.execute(u"SELECT EXISTS(SELECT * FROM " + self.visited_table + " WHERE url=%s)",(url,))
                 #if(self.cursor.fetchone()[0]):
                 #    continue
 
                 #when executing an INSERT statement cursor.execute returns the number of rows updated. If the url
                 #exists in the visited table, then no rows will be updated. Thus if a row is updated, we know that
                 #it has not been visited and we should add it to the visit queue
-                if(self.cursor.execute(u"INSERT INTO %s VALUES (%s) ON DUPLICATE KEY UPDATE url=url", (self.visited_table, url))):
-                    self.cursor.execute(u"INSERT INTO %s VALUES (DEFAULT , %s)", (self.tovisit_table, url))
+                if(self.cursor.execute(u"INSERT INTO " + self.visited_table + u" VALUES (%s) ON DUPLICATE KEY UPDATE url=url", (url,))):
+                    self.cursor.execute(u"INSERT INTO " + self.tovisit_table + u" VALUES (DEFAULT , %s)", (url,))
                     logging.info(u"added {0} to the visit queue".format(url))
 
             self.pages_visited += 1
