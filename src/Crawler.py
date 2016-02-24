@@ -28,8 +28,8 @@ class Crawler(object):
                                   passwd=common.get_config()["crawler"]["db"]["password"],
                                   db=common.get_config()["crawler"]["db"]["name"], charset="utf8")
         self.cursor = self.db.cursor()
-        self.visited_table = "visited_" + site.id
-        self.tovisit_table = "tovisit_" + site.id
+        self.visited_table = "visited_" + str(site.id)
+        self.tovisit_table = "tovisit_" + str(site.id)
         self.cursor.execute("DROP TABLE IF EXISTS %s", (self.visited_table,))
         self.cursor.execute("CREATE TABLE %s (url VARCHAR(1024), PRIMARY KEY(url)) ROW_FORMAT=DYNAMIC", (self.visited_table,))
         self.cursor.execute("DROP TABLE IF EXISTS %s", (self.tovisit_table,))
