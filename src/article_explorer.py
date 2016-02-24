@@ -102,10 +102,10 @@ def parse_articles_per_site(db_keywords, source_sites, twitter_accounts_explorer
     article_count = 0
     newspaper_articles = []
     crawlersource_articles = []
-    logging.info("Site: %s Type:%i"%(site.name, site.type))
+    logging.info("Site: %s Type:%i"%(site.name, site.mode))
     #0 = newspaper, 1 = crawler, 2 = both
 
-    if(site.type == 0 or site.type == 2):
+    if(site.mode == 0 or site.mode == 2):
         logging.disable(logging.ERROR)
         newspaper_source = newspaper.build(site.url,
                                          memoize_articles=False,
@@ -116,7 +116,7 @@ def parse_articles_per_site(db_keywords, source_sites, twitter_accounts_explorer
         newspaper_articles = newspaper_source.articles
         article_count += newspaper_source.size()
         logging.info("populated {0} articles using newspaper".format(article_count))
-    if(site.type == 1 or site.type == 2):
+    if(site.mode == 1 or site.mode == 2):
         crawlersource_articles = Crawler.Crawler(site)
         article_count += crawlersource_articles.probabilistic_n
         logging.debug("expecting {0} from plan b crawler".format(crawlersource_articles.probabilistic_n))
