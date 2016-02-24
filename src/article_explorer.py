@@ -66,7 +66,7 @@ import datetime
 # Custom ExlporerArticle object based on newspaper's Article
 from ExplorerArticle import ExplorerArticle
 # For multiprocessing
-from multiprocessing.dummy import Pool, cpu_count
+from multiprocessing import Pool, cpu_count
 from functools import partial
 import signal
 
@@ -87,11 +87,28 @@ def parse_articles(referring_sites, db_keywords, source_sites, twitter_accounts_
     """
     added, updated, failed, no_match = 0, 0, 0, 0
 
-    for site in referring_sites:
-        parse_articles_per_site(db_keywords, source_sites, twitter_accounts_explorer, site)
-    
+    # Initialize multiprocessing by having cpu*4 workers
+    pool = Pool(processes=cpu_count()*4, maxtasksperchild=1, initializer=init_worker)
 
+    # pass database informations using partial
+    pass_database = partial(parse_articles_per_site, db_keywords, source_sites, twitter_accounts_explorer)
 
+    # Start the multiprocessing
+    result = pool.map_async(pass_database, referring_sites)
+
+    # Continue until all sites are done crawling
+    while (not result.ready()):
+        try:
+            # Check for any new command on communication stream
+            check_command()
+            time.sleep(5)
+        except (KeyboardInterrupt, SystemExit) as e:
+            logging.warning("%s detected, exiting"%str(e))
+            sys.exit(0)
+
+    # Fail-safe to ensure the processes are done
+    pool.close()
+    pool.join()
 
 def parse_articles_per_site(db_keywords, source_sites, twitter_accounts_explorer, site):
 
