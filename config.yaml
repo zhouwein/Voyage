@@ -36,7 +36,6 @@ log:
 crawler:
     n: 5000
     k: 0.6
-    storage: #'sql' or 'memory' (no quotes)
     mysql:
       user: root
       password: root
