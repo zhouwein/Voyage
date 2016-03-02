@@ -47,57 +47,62 @@ class Crawler(object):
         '''
 
         #standard non-recursive tree iteration
-        while(True):
-            if(self.cursor.execute("SELECT * FROM " + self.tovisit_table + " ORDER BY id LIMIT 1")):
-                row = self.cursor.fetchone()
-                row_id = row[0]
-                current_url = row[1]
-                self.cursor.execute("DELETE FROM " + self.tovisit_table + " WHERE id=%s", (row_id,))
-            else:
-                raise StopIteration
+        try:
+            while(True):
+                if(self.cursor.execute("SELECT * FROM " + self.tovisit_table + " ORDER BY id LIMIT 1")):
+                    row = self.cursor.fetchone()
+                    row_id = row[0]
+                    current_url = row[1]
+                    self.cursor.execute("DELETE FROM " + self.tovisit_table + " WHERE id=%s", (row_id,))
+                else:
+                    raise StopIteration
 
-            if(self._should_skip()):
-                logging.info(u"skipping {0} randomly".format(current_url))
-                continue
-
-            logging.info(u"visiting {0}".format(current_url))
-            #use newspaper to download and parse the article
-            article = ExplorerArticle(current_url)
-            article.download()
-
-            #get get urls from the article
-            for link in article.get_links():
-                url = urljoin(current_url, link.href, False)
-                if self.url_in_filter(url, self.filters):
-                    logging.info("Matches with filter, skipping the {0}".format(url))
+                if(self._should_skip()):
+                    logging.info(u"skipping {0} randomly".format(current_url))
                     continue
-                try:
-                    parsed_url = urlparse(url)
-                    parsed_as_list = list(parsed_url)
-                    if(parsed_url.scheme != u"http" and parsed_url.scheme != u"https"):
-                        logging.info(u"skipping url with invalid scheme: {0}".format(url))
+
+                logging.info(u"visiting {0}".format(current_url))
+                #use newspaper to download and parse the article
+                article = ExplorerArticle(current_url)
+                article.download()
+
+                #get get urls from the article
+                for link in article.get_links():
+                    url = urljoin(current_url, link.href, False)
+                    if self.url_in_filter(url, self.filters):
+                        logging.info("skipping url \"{0}\" because it matches filter".format(url))
                         continue
-                    parsed_as_list[5] = ''
-                    url = urlunparse(urlnorm.norm_tuple(*parsed_as_list))
-                except Exception as e:
-                    logging.info(u"skipping malformed url {0}. Error: {1}".format(url, str(e)))
-                    continue
-                if(not parsed_url.netloc.endswith(self.domain)):
-                    continue
+                    try:
+                        parsed_url = urlparse(url)
+                        parsed_as_list = list(parsed_url)
+                        if(parsed_url.scheme != u"http" and parsed_url.scheme != u"https"):
+                            logging.info(u"skipping url with invalid scheme: {0}".format(url))
+                            continue
+                        parsed_as_list[5] = ''
+                        url = urlunparse(urlnorm.norm_tuple(*parsed_as_list))
+                    except Exception as e:
+                        logging.info(u"skipping malformed url {0}. Error: {1}".format(url, str(e)))
+                        continue
+                    if(not parsed_url.netloc.endswith(self.domain)):
+                        continue
 
-                #self.cursor.execute(u"SELECT EXISTS(SELECT * FROM " + self.visited_table + " WHERE url=%s)",(url,))
-                #if(self.cursor.fetchone()[0]):
-                #    continue
+                    #self.cursor.execute(u"SELECT EXISTS(SELECT * FROM " + self.visited_table + " WHERE url=%s)",(url,))
+                    #if(self.cursor.fetchone()[0]):
+                    #    continue
 
-                #when executing an INSERT statement cursor.execute returns the number of rows updated. If the url
-                #exists in the visited table, then no rows will be updated. Thus if a row is updated, we know that
-                #it has not been visited and we should add it to the visit queue
-                if(self.cursor.execute(u"INSERT INTO " + self.visited_table + u" VALUES (%s) ON DUPLICATE KEY UPDATE url=url", (url,))):
-                    self.cursor.execute(u"INSERT INTO " + self.tovisit_table + u" VALUES (DEFAULT , %s)", (url,))
-                    logging.info(u"added {0} to the visit queue".format(url))
+                    #when executing an INSERT statement cursor.execute returns the number of rows updated. If the url
+                    #exists in the visited table, then no rows will be updated. Thus if a row is updated, we know that
+                    #it has not been visited and we should add it to the visit queue
+                    if(self.cursor.execute(u"INSERT INTO " + self.visited_table + u" VALUES (%s) ON DUPLICATE KEY UPDATE url=url", (url,))):
+                        self.cursor.execute(u"INSERT INTO " + self.tovisit_table + u" VALUES (DEFAULT , %s)", (url,))
+                        logging.info(u"added {0} to the visit queue".format(url))
 
-            self.pages_visited += 1
-            return article
+                self.pages_visited += 1
+                return article
+        except Exception as e:
+            raise e
+        finally:
+            self.db.commit()
 
     def _should_skip(self):
         n = self.probabilistic_n
