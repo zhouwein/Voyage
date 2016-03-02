@@ -24,9 +24,9 @@ class Crawler(object):
         self.probabilistic_n = common.get_config()["crawler"]["n"]
         self.probabilistic_k = common.get_config()["crawler"]["k"]
 
-        self.db = MySQLdb.connect(host="localhost", user=common.get_config()["crawler"]["db"]["user"],
-                                  passwd=common.get_config()["crawler"]["db"]["password"],
-                                  db=common.get_config()["crawler"]["db"]["name"], charset="utf8")
+        self.db = MySQLdb.connect(host="localhost", user=common.get_config()["crawler"]["mysql"]["user"],
+                                  passwd=common.get_config()["crawler"]["mysql"]["password"],
+                                  db=common.get_config()["crawler"]["mysql"]["name"], charset="utf8")
         self.cursor = self.db.cursor()
         self.visited_table = "visited_" + str(site.id)
         self.tovisit_table = "tovisit_" + str(site.id)
